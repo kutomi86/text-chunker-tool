@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Text Chunker Tool</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Consolas&family=Google+Sans:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Top Bar / Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <button id="btn-reset" class="btn-secondary hidden" title="Start over">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          <span>Chunk Another</span>
+        </button>
+        <h1 class="app-title">Text Chunker Tool</h1>
+      </div>
+      <div id="stats-badge" class="stats-badge hidden">
+        <span id="stat-chunks">0 Chunks</span> • <span id="stat-chars">0 Characters</span>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="editor-section">
+      
+      <!-- Primary Input & Output Text Container -->
+      <div class="box-wrapper" id="primary-wrapper">
+        <div class="box-label-bar">
+          <span id="primary-box-label" class="box-label">Input Markdown Article</span>
+          <span class="box-sublabel">Editable</span>
+        </div>
+        <textarea 
+          id="main-textbox" 
+          placeholder="Paste your generated article here..."
+          spellcheck="false"
+        ></textarea>
+        
+        <!-- Processing Overlay Animation -->
+        <div id="loading-overlay" class="loading-overlay hidden">
+          <div class="google-spinner"></div>
+          <p class="loading-text">Cleaning citations & processing paragraph breaks...</p>
+        </div>
+      </div>
+
+      <!-- Chunking Settings Control Bar -->
+      <div class="settings-bar">
+        <div class="setting-item">
+          <label for="input-target-length">Target Chunk Length</label>
+          <div class="input-with-unit">
+            <input 
+              type="number" 
+              id="input-target-length" 
+              value="1750" 
+              min="500" 
+              max="4000" 
+              step="50"
+            />
+            <span class="unit-label">chars</span>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <label for="input-max-limit">Hard Max Limit</label>
+          <div class="input-with-unit">
+            <input 
+              type="number" 
+              id="input-max-limit" 
+              value="1900" 
+              min="500" 
+              max="4000" 
+              step="10"
+            />
+            <span class="unit-label">chars</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Primary Action Buttons -->
+      <div class="action-bar">
+        <button id="btn-generate" class="btn-primary">
+          <span>Generate Chunks</span>
+        </button>
+        <button id="btn-toggle-original" class="btn-secondary hidden">
+          <span>See Original</span>
+          <svg id="arrow-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Collapsible Backup Text Drawer -->
+      <div id="original-drawer" class="drawer collapsed">
+        <div class="drawer-content">
+          <div class="box-wrapper original-wrapper">
+            <div class="box-label-bar">
+              <span class="box-label">Raw Original Text</span>
+              <span class="box-sublabel">Unprocessed Backup (Editable)</span>
+            </div>
+            <textarea 
+              id="original-textbox" 
+              placeholder="Original uncleaned text will appear here..."
+              spellcheck="false"
+            ></textarea>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="logic.js"></script>
+</body>
+</html>
