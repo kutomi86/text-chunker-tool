@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Text Chunker Tool</title>
+  <title>Text Chunker & Cleaner</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -22,7 +22,7 @@
           </svg>
           <span>Chunk Another</span>
         </button>
-        <h1 class="app-title">Text Chunker Tool</h1>
+        <h1 class="app-title">Text Content Chunker & Cleaner</h1>
       </div>
       <div id="stats-badge" class="stats-badge hidden">
         <span id="stat-chunks">0 Chunks</span> • <span id="stat-chars">0 Characters</span>
@@ -32,17 +32,24 @@
     <!-- Main Workspace -->
     <main class="editor-section">
       
-      <!-- Primary Input & Output Text Container -->
+      <!-- Primary Text Box with Highlighting Layer & Swipe Container -->
       <div class="box-wrapper" id="primary-wrapper">
         <div class="box-label-bar">
           <span id="primary-box-label" class="box-label">Input Markdown Article</span>
           <span class="box-sublabel">Editable</span>
         </div>
-        <textarea 
-          id="main-textbox" 
-          placeholder="Paste your generated article here..."
-          spellcheck="false"
-        ></textarea>
+        
+        <div class="swipe-viewport">
+          <div id="editor-container" class="editor-container">
+            <div id="highlight-layer" class="editor-backdrop"></div>
+            <textarea 
+              id="main-textbox" 
+              class="editor-textarea"
+              placeholder="Paste your generated article here..."
+              spellcheck="false"
+            ></textarea>
+          </div>
+        </div>
         
         <!-- Processing Overlay Animation -->
         <div id="loading-overlay" class="loading-overlay hidden">
@@ -51,8 +58,21 @@
         </div>
       </div>
 
+      <!-- Mode Switcher Bar (Hidden until generation complete) -->
+      <div id="mode-switch-bar" class="mode-switch-bar hidden">
+        <div class="mode-switch-track">
+          <div id="mode-indicator" class="mode-indicator"></div>
+          <button id="btn-mode-chunker" class="mode-tab active" type="button">
+            <span>Chunker Mode</span>
+          </button>
+          <button id="btn-mode-cleaner" class="mode-tab" type="button">
+            <span>Cleaner Mode</span>
+          </button>
+        </div>
+      </div>
+
       <!-- Chunking Settings Control Bar -->
-      <div class="settings-bar">
+      <div id="settings-bar" class="settings-bar">
         <div class="setting-item">
           <label for="input-target-length">Target Chunk Length</label>
           <div class="input-with-unit">
@@ -82,6 +102,36 @@
             <span class="unit-label">chars</span>
           </div>
         </div>
+      </div>
+
+      <!-- Prohibited Strings Item Manager Panel -->
+      <div class="prohibited-manager-card">
+        <div class="prohibited-header">
+          <div class="prohibited-title-group">
+            <span class="prohibited-label">Prohibited Strings</span>
+            <span class="prohibited-sublabel">Flagged in red selection blocks</span>
+          </div>
+          <button id="btn-toggle-add-prohibited" class="btn-icon-add" title="Add prohibited string">+</button>
+        </div>
+
+        <!-- Add Item Form Row -->
+        <div id="prohibited-input-row" class="prohibited-input-row hidden">
+          <input 
+            type="text" 
+            id="input-prohibited-text" 
+            placeholder="Type string (e.g., ---)..." 
+            spellcheck="false"
+          />
+          <button id="btn-confirm-prohibited" class="btn-icon-submit" title="Confirm add">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="9 10 4 15 9 20"></polyline>
+              <path d="M20 4v7a4 4 0 0 1-4 4H4"></path>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Item Lister -->
+        <ul id="prohibited-list" class="prohibited-list"></ul>
       </div>
 
       <!-- Primary Action Buttons -->
