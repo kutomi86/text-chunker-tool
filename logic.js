@@ -272,70 +272,165 @@ document.addEventListener('DOMContentLoaded', () => {
     return `[Chunk ${index}]\n\n${content.trim()}`;
   }
 
-  // 6. Paragraph-Boundary Chunking Algorithm
+  // Helper: Parse Markdown into atomic prose paragraphs and codeboxes
+  function parseMarkdownBlocks(text) {
+    const lines = text.split('\n');
+    const blocks = [];
+    let proseBuffer = [];
+    let codeBuffer = [];
+    let inCodeBlock = false;
+
+    function flushProse() {
+      if (proseBuffer.length > 0) {
+        const proseStr = proseBuffer.join('\n').trim();
+        if (proseStr) {
+          const paragraphs = proseStr.split(/\n\s*\n/);
+          paragraphs.forEach(p => {
+            const trimmed = p.trim();
+            if (trimmed) {
+              blocks.push({ type: 'prose', content: trimmed });
+            }
+          });
+        }
+        proseBuffer = [];
+      }
+    }
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const isCodeBlockFence = /^\s*```/.test(line);
+
+      if (isCodeBlockFence) {
+        if (!inCodeBlock) {
+          flushProse();
+          inCodeBlock = true;
+          codeBuffer.push(line);
+        } else {
+          codeBuffer.push(line);
+          blocks.push({ type: 'code', content: codeBuffer.join('\n').trim() });
+          codeBuffer = [];
+          inCodeBlock = false;
+        }
+      } else {
+        if (inCodeBlock) {
+          codeBuffer.push(line);
+        } else {
+          proseBuffer.push(line);
+        }
+      }
+    }
+
+    flushProse();
+
+    if (codeBuffer.length > 0) {
+      blocks.push({ type: 'code', content: codeBuffer.join('\n').trim() });
+    }
+
+    return blocks;
+  }
+
+  // 6. Paragraph & Codebox-Boundary Chunking Algorithm
   function splitIntoChunks(text, targetLen, maxLimit) {
     const cleanedText = sanitizeMarkdown(text).trim();
     if (!cleanedText) return [];
 
+    const blocks = parseMarkdownBlocks(cleanedText);
+    if (blocks.length === 0) return [];
+
     const chunks = [];
-    const paragraphs = cleanedText.split(/\n\s*\n/);
-    
-    let currentParagraphs = [];
+    let currentBlocks = [];
     let chunkIndex = 1;
 
-    paragraphs.forEach((paragraph) => {
-      const trimmedPara = paragraph.trim();
-      if (!trimmedPara) return;
+    blocks.forEach((block) => {
+      const content = block.content.trim();
+      if (!content) return;
 
-      const testContent = [...currentParagraphs, trimmedPara].join('\n\n');
+      const testContent = [...currentBlocks, content].join('\n\n');
       const testChunkString = formatChunk(chunkIndex, testContent);
 
       if (testChunkString.length <= maxLimit) {
-        currentParagraphs.push(trimmedPara);
-        
-        const currentContentStr = formatChunk(chunkIndex, currentParagraphs.join('\n\n'));
+        currentBlocks.push(content);
+
+        const currentContentStr = formatChunk(chunkIndex, currentBlocks.join('\n\n'));
         if (currentContentStr.length >= targetLen) {
           chunks.push(currentContentStr);
           chunkIndex++;
-          currentParagraphs = [];
+          currentBlocks = [];
         }
       } else {
-        if (currentParagraphs.length > 0) {
-          chunks.push(formatChunk(chunkIndex, currentParagraphs.join('\n\n')));
+        // Adding this block exceeds max limit; flush accumulated blocks first
+        if (currentBlocks.length > 0) {
+          chunks.push(formatChunk(chunkIndex, currentBlocks.join('\n\n')));
           chunkIndex++;
-          currentParagraphs = [];
+          currentBlocks = [];
         }
 
-        const singleParaChunkStr = formatChunk(chunkIndex, trimmedPara);
-        if (singleParaChunkStr.length > maxLimit) {
-          const lines = trimmedPara.split('\n');
-          let subLines = [];
-
-          lines.forEach((line) => {
-            const testSub = [...subLines, line].join('\n');
-            if (formatChunk(chunkIndex, testSub).length <= maxLimit) {
-              subLines.push(line);
-            } else {
-              if (subLines.length > 0) {
-                chunks.push(formatChunk(chunkIndex, subLines.join('\n')));
-                chunkIndex++;
-                subLines = [];
-              }
-              subLines.push(line);
-            }
-          });
-
-          if (subLines.length > 0) {
-            currentParagraphs = [subLines.join('\n')];
-          }
+        // Check if this single block fits within max limit by itself
+        const singleBlockChunkStr = formatChunk(chunkIndex, content);
+        if (singleBlockChunkStr.length <= maxLimit) {
+          currentBlocks = [content];
         } else {
-          currentParagraphs = [trimmedPara];
+          // Single block exceeds hard max limit
+          if (block.type === 'code') {
+            // Split codebox line-by-line while maintaining valid opening & closing fences
+            const codeLines = content.split('\n');
+            const openFence = codeLines[0];
+            const closeFence = '```';
+            const bodyLines = (codeLines[codeLines.length - 1].trim() === '```') 
+              ? codeLines.slice(1, -1) 
+              : codeLines.slice(1);
+
+            let subLines = [];
+            for (let j = 0; j < bodyLines.length; j++) {
+              const line = bodyLines[j];
+              const testBlockStr = `${openFence}\n${[...subLines, line].join('\n')}\n${closeFence}`;
+
+              if (formatChunk(chunkIndex, testBlockStr).length <= maxLimit) {
+                subLines.push(line);
+              } else {
+                if (subLines.length > 0) {
+                  const codeChunkContent = `${openFence}\n${subLines.join('\n')}\n${closeFence}`;
+                  chunks.push(formatChunk(chunkIndex, codeChunkContent));
+                  chunkIndex++;
+                  subLines = [];
+                }
+                subLines.push(line);
+              }
+            }
+
+            if (subLines.length > 0) {
+              const codeChunkContent = `${openFence}\n${subLines.join('\n')}\n${closeFence}`;
+              currentBlocks = [codeChunkContent];
+            }
+          } else {
+            // Split regular prose paragraph line-by-line
+            const lines = content.split('\n');
+            let subLines = [];
+
+            lines.forEach((line) => {
+              const testSub = [...subLines, line].join('\n');
+              if (formatChunk(chunkIndex, testSub).length <= maxLimit) {
+                subLines.push(line);
+              } else {
+                if (subLines.length > 0) {
+                  chunks.push(formatChunk(chunkIndex, subLines.join('\n')));
+                  chunkIndex++;
+                  subLines = [];
+                }
+                subLines.push(line);
+              }
+            });
+
+            if (subLines.length > 0) {
+              currentBlocks = [subLines.join('\n')];
+            }
+          }
         }
       }
     });
 
-    if (currentParagraphs.length > 0) {
-      chunks.push(formatChunk(chunkIndex, currentParagraphs.join('\n\n')));
+    if (currentBlocks.length > 0) {
+      chunks.push(formatChunk(chunkIndex, currentBlocks.join('\n\n')));
     }
 
     return chunks;
